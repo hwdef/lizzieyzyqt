@@ -1,5 +1,7 @@
 # LizzieYzy Qt
 
+This project is an AI-assisted refactoring of the Java project [yzyray/lizzieyzy](https://github.com/yzyray/lizzieyzy) into a Qt application.
+
 This directory contains the Qt 6/C++20 implementation described in the
 repository-root `PLAN.md`. Installed packages include a copy of that plan next
 to this README. The legacy Java application has been removed from the working
