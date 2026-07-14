@@ -1,0 +1,122 @@
+name: Qt CMake
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux Qt 6
+            os: ubuntu-24.04
+            qt-host: linux
+            qt-arch: gcc_64
+            package-glob: "build/LizzieYzyQt-*-Linux.tar.gz"
+            package-platform: "Linux"
+            package-executable: "lizzieyzy_qt"
+            installed-executable: "./install/bin/lizzieyzy_qt"
+            require-qt-deploy: "OFF"
+            diagnostics-qpa-platform: "offscreen"
+          - name: Windows Qt 6
+            os: windows-2022
+            qt-host: windows
+            qt-arch: win64_msvc2019_64
+            package-glob: "build/LizzieYzyQt-*-Windows.zip"
+            package-platform: "Windows"
+            package-executable: "lizzieyzy_qt.exe"
+            installed-executable: "./install/bin/lizzieyzy_qt.exe"
+            require-qt-deploy: "ON"
+            diagnostics-qpa-platform: "windows"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ libgl1-mesa-dev libxkbcommon-dev
+
+      - name: Set up MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Windows build tools
+        if: runner.os == 'Windows'
+        run: choco install ninja --yes --no-progress
+
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.3"
+          host: ${{ matrix.qt-host }}
+          target: desktop
+          arch: ${{ matrix.qt-arch }}
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --parallel 2 --output-on-failure
+
+      - name: Install
+        run: cmake --install build --prefix "$PWD/install"
+
+      - name: Verify installed executable
+        run: ${{ matrix.installed-executable }} --version
+
+      - name: Verify installed diagnostics
+        run: >
+          cmake -E env
+          QT_QPA_PLATFORM="${{ matrix.diagnostics-qpa-platform }}"
+          ${{ matrix.installed-executable }} --diagnostics
+
+      - name: Verify installed target acceptance report
+        run: >
+          cmake -E env
+          QT_QPA_PLATFORM="${{ matrix.diagnostics-qpa-platform }}"
+          ${{ matrix.installed-executable }} --target-acceptance-report
+
+      - name: Verify installed target acceptance record template
+        run: >
+          cmake -E env
+          QT_QPA_PLATFORM=missing-qpa-for-installed-record-template-smoke
+          ${{ matrix.installed-executable }} --target-acceptance-record-template
+
+      - name: Package
+        run: cmake --build build --target package
+
+      - name: Verify package contents
+        run: >
+          cmake
+          -DPACKAGE_GLOB="${{ matrix.package-glob }}"
+          -DPACKAGE_EXECUTABLE="${{ matrix.package-executable }}"
+          -DPACKAGE_EXPECT_PLATFORM="${{ matrix.package-platform }}"
+          -DPACKAGE_REQUIRE_QT_DEPLOY="${{ matrix.require-qt-deploy }}"
+          -DPACKAGE_RUN_VERSION_SMOKE=ON
+          -DPACKAGE_RUN_DIAGNOSTICS_SMOKE=ON
+          -DPACKAGE_RUN_TARGET_ACCEPTANCE_RECORD_TEMPLATE_SMOKE=ON
+          -DPACKAGE_RUN_TARGET_ACCEPTANCE_REPORT_SMOKE=ON
+          -DPACKAGE_DIAGNOSTICS_QPA_PLATFORM="${{ matrix.diagnostics-qpa-platform }}"
+          -DPACKAGE_TARGET_ACCEPTANCE_REPORT_QPA_PLATFORM="${{ matrix.diagnostics-qpa-platform }}"
+          -DPACKAGE_SMOKE_DIR="build/package-smoke"
+          -DPACKAGE_DIAGNOSTICS_SMOKE_DIR="build/package-diagnostics-smoke"
+          -DPACKAGE_TARGET_ACCEPTANCE_RECORD_TEMPLATE_SMOKE_DIR="build/package-target-acceptance-record-template-smoke"
+          -DPACKAGE_TARGET_ACCEPTANCE_REPORT_SMOKE_DIR="build/package-target-acceptance-report-smoke"
+          -P cmake/VerifyPackage.cmake
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: lizzieyzy-qt-${{ runner.os }}
+          path: ${{ matrix.package-glob }}
+          if-no-files-found: error

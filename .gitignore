@@ -1,0 +1,11 @@
+# CMake / Qt build and install output
+/build/
+/install/
+/_CPack_Packages/
+
+# Locally generated LizzieYzy Qt release packages
+/LizzieYzyQt-*.tar.gz
+/LizzieYzyQt-*.zip
+
+# KataGo runtime logs
+/gtp_logs/
