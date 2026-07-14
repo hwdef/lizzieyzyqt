@@ -1,5 +1,7 @@
 # LizzieYzy Qt
 
+![LizzieYzy Qt application screenshot](docs/screenshot.png)
+
 This project is an AI-assisted refactoring of the Java project [yzyray/lizzieyzy](https://github.com/yzyray/lizzieyzy) into a Qt application.
 
 This directory contains the Qt 6/C++20 implementation described in the
